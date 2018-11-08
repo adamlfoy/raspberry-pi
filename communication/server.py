@@ -5,7 +5,7 @@ class Server:
 
     # TODO: Finish the __init__ method with all other, necessary init information
     # TODO: Come up with a way to neatly recognise different clients
-    def __init__(self, *, ip='0.0.0.0', port=50000, clients_count=4):
+    def __init__(self, *, ip='0.0.0.0', port=50000):
 
         # Save the host and port information
         self.ip = ip
@@ -24,8 +24,8 @@ class Server:
             print("Failed to bind socket to the given ip and port - " + str(e))
             exit(0)
 
-        # Tell the server to listen to up to :param clients_count: connections
-        self.socket.listen(clients_count)
+        # Allow 3 connections queued up at the same time
+        self.socket.listen(3)
 
     # TODO: Check if the resources for new clients must be manually cleaned once connection lost
     # TODO: Spawn a new process / thread handling communication with each client
@@ -45,7 +45,11 @@ class Server:
 class Client:
 
     # TODO: Fill in the Client class, possibly add data receiving, send methods etc.
+    # TODO: Add data storage???
     def __init__(self, data):
         """The return value is a pair (conn, address) where conn is a new socket object usable to send and receive data
         on the connection, and address is the address bound to the socket on the other end of the connection"""
         pass
+
+# TO READ
+# https://stackoverflow.com/questions/23828264/how-to-make-a-simple-multithreaded-socket-server-in-python-that-remembers-client
