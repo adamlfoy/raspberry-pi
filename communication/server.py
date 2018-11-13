@@ -1,11 +1,11 @@
 from collections.abc import MutableMapping
+from threading import Thread
 import socket
 
 
 class Server:
 
-    # TODO: Finish the __init__ method with all other, necessary init information
-    # TODO: Come up with a way to neatly recognise different clients
+    # TODO: self._data -> (ID, dict) - Clients will have to send JSON with specific id to successfully get added
     def __init__(self, *, ip='0.0.0.0', port=50000):
 
         # Save the host and port information
@@ -13,45 +13,90 @@ class Server:
         self.port = port
 
         # Declare clients storage
-        self.clients = dict()
+        self._clients = list()
+
+        # Declare data storage
+        self._data = DataStorage
 
         # Initialise the socket for IPv4 addresses (hence AF_INET) and TCP (hence SOCK_STREAM)
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         try:
             # Bind the socket to the given address
-            self.socket.bind((self.ip, self.port))
+            self._socket.bind((self.ip, self.port))
         except socket.error as e:
             print("Failed to bind socket to the given ip and port - " + str(e))
             exit(0)
 
-        # Allow 3 connections queued up at the same time
-        self.socket.listen(3)
-
     # TODO: Check if the resources for new clients must be manually cleaned once connection lost
-    # TODO: Spawn a new process / thread handling communication with each client
-    # TODO: Write functionality, method should add each client to the clients dictionary, with unique ID
-    def add_client(self, data):
-        pass
+    # TODO: Actually write the thing... error checking, logging etc. etc.
+    # TODO: Possibly rename this to __call__, so you can say s = Server(); s()
+    def listen(self):
 
-    # TODO: Write a method that collects data from each client, possibly call client's method
-    def receive(self):
-        pass
+        # Allow 3 connections queued up at the same time
+        self._socket.listen(3)
 
-    # TODO: Write a method that sends formatted data to a chosen client, possibly call client's method
-    def send(self, data, target):
+        # Keep accepting new clients
+        while True:
+
+            client, address = self._socket.accept()
+            client.sendall(bytes("Hello there, general {0}\r\n".format(address), encoding="UTF-8"))
+            self._clients.append(Client(client, address))
+
+    # TODO: Write a neat sendall with /r/n breaks for telnet testing
+    def send(self, client):
         pass
 
 
 class Client:
 
-    # TODO: Fill in the Client class, possibly add data receiving, send methods etc.
-    def __init__(self, data):
-        """The return value is a pair (conn, address) where conn is a new socket object usable to send and receive data
-        on the connection, and address is the address bound to the socket on the other end of the connection"""
-        pass
+    def __init__(self, client, address):
 
-# TO READ
+        # Assign data passed from the accept() method
+        self._socket = client
+        self._address = address
+
+        # Specify the timeout to get rid of... timeouts, and shut the connection
+        self._socket.settimeout(10)
+
+        # Declare constant for the size of buffer
+        self._BUFFER = 4096
+
+        # Initialise the data storage
+        self._data = None
+
+        # Create a new thread and run it
+        self._thread = Thread(target=self.run)
+        self._thread.start()
+
+    @property
+    def data(self):
+        return self._data
+
+    # Function that keeps receiving the data
+    # TODO: Add proper running, error checking, write to exceptions, logging (prints) etc.
+    def run(self):
+
+        # An infinite loop, has a break clause inside
+        while True:
+
+            # Get new data
+            try:
+                data = self._socket.recv(self._BUFFER)
+                if data:
+                    print(data)
+                else:
+                    raise socket.error('Client disconnected')
+            except:
+                self._socket.close()
+                break
+
+    # TODO: Possibly add better __str__, and implement __repr__ if needed
+    def __str__(self):
+        return "Ip: {0}, Port {1}".format(self._address[0], self._address[1])
+
+
+# TODO: READ (Already read, include as reference, was helpful
 # https://stackoverflow.com/questions/23828264/how-to-make-a-simple-multithreaded-socket-server-in-python-that-remembers-client
 
 
@@ -120,6 +165,11 @@ class DataStorage:
             return True
         else:
             return False
+
+# TODO: Write a decorator to debug any class - fields + functions + call time + call location (module maybe? or outer scope)
+
+s = Server()
+s.listen()
 
 '''
 TODO: Remove it, possibly create proper assertion tests
