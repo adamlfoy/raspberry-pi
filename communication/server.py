@@ -1,132 +1,143 @@
-from communication.data_manager import DataStorage
-from threading import Thread
 import socket
+from serial import Serial, SerialException
+from multiprocessing import Process
+from json import dumps, loads, JSONDecodeError
+
+import communication.data_manager as dm
 
 
 class Server:
 
     def __init__(self, *, ip='0.0.0.0', port=50000):
 
+        # Initialise communication with surface
+        self._init_high_level(ip, port)
+
+        # Initialise communication with Arduino-s
+        self._init_low_level()
+
+    def _init_high_level(self, ip, port):
+
         # Save the host and port information
-        self.ip = ip
-        self.port = port
-
-        # Declare clients storage
-        self._clients = list()
-
-        # Declare data storage
-        self._data = DataStorage
+        self._ip = ip
+        self._port = port
 
         # Initialise the socket for IPv4 addresses (hence AF_INET) and TCP (hence SOCK_STREAM)
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         try:
             # Bind the socket to the given address
-            self._socket.bind((self.ip, self.port))
+            self._socket.bind((self._ip, self._port))
         except socket.error as e:
-            print("Failed to bind socket to the given ip and port - " + str(e))
-            exit(0)
+            print("Failed to bind socket to the given address {}:{} ".format(self._ip, self._port))
 
-    def _listen(self):
+        # Tell the server to listen to only one connection
+        self._socket.listen(1)
 
-        # Allow 3 connections queued up at the same time
-        self._socket.listen(3)
+    # TODO: Finish this
+    def _init_low_level(self):
 
-        print("Accepting connections to {0} on port {1}".format(self.ip, self.port))
+        # Declare a set of clients to remember
+        self._clients = set()
 
-        # Keep accepting new clients
+        # Declare a list of ports to remember
+        self._ports = ["/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyACM2", "/dev/ttyACM3"]
+
+        # Iterate over each port and create corresponding clients
+        for port in self._ports:
+
+            try:
+                # Create an instance of the Arduino and store it
+                self._clients.add(Arduino(port))
+                print("Connection with {} established.".format(port))
+
+            except SerialException:
+                print("Failed to connect to {}".format(port))
+
+    def _listen_high_level(self):
+
+        # Never stop the server once it was started
         while True:
 
-            # Retrieve the socket, and address from the connected client
-            client, address = self._socket.accept()
-            print("New client with address {0}:{1} connected.".format(address[0], address[1]))
+            # Inform that the server is ready to receive a connection
+            print("Waiting for a connection...")
 
-            # Send a welcome message
-            client.sendall(bytes("Hello there, general {0}\r\n".format(address), encoding="UTF-8"))
+            # Wait for a connection (accept function blocks the program until a client connects to the server)
+            self._client_socket, self._client_address = self._socket.accept()
 
-            # Remember the client
-            self._clients.append(Client(client, address))
+            # Inform that someone has connected
+            print("Client with address {} connected".format(self._client_address))
 
-    def _cleanup(self):
+            while True:
 
-        # Keep cleaning up
+                try:
+                    # Once connected, keep receiving and sending the data, break in case of errors
+                    data = self._client_socket.recv(4096)
+
+                    # If 0-byte was received, close the connection
+                    if not data:
+                        break
+
+                except ConnectionResetError:
+                    break
+                except ConnectionAbortedError:
+                    break
+
+                # Convert bytes to string, remove white spaces, ignore invalid data
+                try:
+                    data = data.decode("utf-8").strip()
+                except UnicodeDecodeError:
+                    data = None
+
+                # Handle valid data
+                if data:
+
+                    # Attempt to decode from JSON, inform about invalid data received
+                    try:
+                        dm.data.set(dm.SURFACE, **loads(data))
+                    except JSONDecodeError:
+                        print("Received invalid data: {}".format(data))
+
+                # Send current state of the data manager
+                self._client_socket.sendall(bytes(dumps(dm.data.get(dm.SURFACE)), encoding="utf-8"))
+
+            # Clean up
+            self._client_socket.close()
+
+            # Inform that the connection is closed
+            print("Connection from {} address closed successfully".format(self._client_address))
+
+    # TODO: Finish this
+    def _listen_low_level(self):
+
+        # Never stop the server once it was started
         while True:
+            pass
 
-            # Iterate over clients to remove inactive connections
-            for client in self._clients:
-                if not client.thread:
-                    self._clients.remove(client)
+    # TODO: Finish this, possibly use threads and/or spawn more processes
+    def run(self):
 
-    def __call__(self):
-
-        # Listen to new connections
-        Thread(target=self._listen).start()
-
-        # Keep cleaning up the resources
-        Thread(target=self._cleanup).start()
+        # Run each connection
+        Process(target=self._listen_high_level).start()
 
 
-class Client:
+# TODO: Finish this
+class Arduino:
 
-    def __init__(self, client, address):
+    # TODO: Finish this
+    def __init__(self, port):
 
-        # Assign data passed from the accept() method
-        self._socket = client
-        self._address = address
+        # Create a new serial object
+        self._serial = Serial(port)
 
-        # Declare constant for the timeout
-        self._TIMEOUT = 3
-
-        # Specify the timeout to get rid of... timeouts, and shut the connection
-        self._socket.settimeout(self._TIMEOUT)
-
-        # Declare constant for the size of buffer
-        self._BUFFER = 4096
-
-        # Initialise the data storage
-        self._data = None
-
-        # Create a new thread and run it
-        self._thread = Thread(target=self._run)
-        self._thread.start()
-
-    @property
-    def data(self):
-        return self._data
-
-    @property
-    def thread(self):
-        return self._thread.is_alive()
-
+    # TODO: Finish this
     def _run(self):
 
-        # An infinite loop, has a break clause inside
+        # Run an infinite loop to keep exchanging data
         while True:
-
-            # Get new data
-            try:
-                # Once connected, keep receiving the data, break in case of errors
-                data = self._socket.recv(self._BUFFER)
-            except ConnectionResetError:
-                break
-            except ConnectionAbortedError:
-                break
-            except socket.timeout:
-                break
-
-            # If 0-byte was received, close the connection
-            if not data:
-                break
-            else:
-                print("{0} - {1}".format(self, data))
-
-        # Release resources
-        self._socket.close()
-        print("Client {0} disconnected.".format(self))
-
-    def __str__(self):
-        return "{0}:{1}".format(self._address[0], self._address[1])
+            pass
 
 
 if __name__ == "__main__":
-    Server()()
+    s = Server()
+    s.run()

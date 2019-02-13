@@ -1,68 +1,43 @@
-from collections.abc import MutableMapping
+# Declare constants to easily access the resources
+SURFACE = 0
+ARDUINO_A = 1
+ARDUINO_B = 2
+ARDUINO_C = 3
+ARDUINO_D = 4
 
 
-class DataStorage:
-    """
-    Class handling addition, retrieval and modification of data.
-
-    -= Getting data =-
-
-    To retrieve existing data, call an instance of this object with a valid key value (must be str).
-    The stored data will be returned on success, None otherwise.
-    Example: storage("existing_key") where storage is an instance of DataStorage.
-
-    -= Setting data =-
-
-    To add new data, call an instance of this object with a unique key value (must be str) and data (must be a mapping).
-    True will be returned on successful addition, False otherwise.
-    Example: storage("new_key", data) where storage is an instance of DataStorage, and data is a mutable mapping type.
-
-    -= Modifying data =-
-
-    To modify existing data, call the modify method with a valid key value and key, value pairs of data to be changed.
-    True will be returned on successful modification, False otherwise.
-    Example: storage.modify("existing_key", "key1"=1, "key2"=2) where storage is an instance of DataStorage.
-    """
+# TODO: Make this a singleton
+class DataManager:
 
     def __init__(self):
 
-        # Declare a dictionary to store data
-        self._data = dict()
+        # Declare dictionaries of data
+        self._surface = dict()
+        self._arduino_A = dict()
+        self._arduino_B = dict()
+        self._arduino_C = dict()
+        self._arduino_D = dict()
 
-    def __call__(self, key: str, *, data=None):
+        # Create a dictionary mapping each index to corresponding location
+        self._data = {
+            SURFACE: self._surface,
+            ARDUINO_A: self._arduino_A,
+            ARDUINO_B: self._arduino_B,
+            ARDUINO_C: self._arduino_C,
+            ARDUINO_D: self._arduino_D
+        }
 
-        # Check the key's type
-        if not type(key) == str:
-            raise TypeError
+    def get(self, index: int, *args):
 
-        # Check for a valid "get" request, return None on invalid key
-        if data is None:
-            return self._data[key] if key in self._data else None
+        # Return selected data or whole dictionary if no args passed
+        return {key: self._data[index][key] for key in args} if args else self._data[index]
 
-        # Check the data's type
-        if not isinstance(data, MutableMapping):
-            raise TypeError
+    def set(self, index: int, **kwargs):
 
-        # Check for a valid "set" request, return True on success, False on failure
-        if key not in self._data:
-            self._data[key] = data
-            return True
-        else:
-            return False
+        # Update the data with the given keyword arguments
+        for key, value in kwargs.items():
+            self._data[index][key] = value
 
-    def modify(self, key, **kwargs):
 
-        # Check the key's type
-        if not type(key) == str:
-            raise TypeError
-
-        # Check for a valid "get" request
-        if key in self._data:
-
-            # Iterate over requested pairs and change data for each valid one
-            for k, v in kwargs.items():
-                self._data[key][k] = v
-
-            return True
-        else:
-            return False
+# Create a globally accessible data manager
+data = DataManager()
