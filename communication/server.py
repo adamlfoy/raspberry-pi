@@ -2,10 +2,12 @@ import socket
 from serial import Serial, SerialException
 from multiprocessing import Process
 from json import dumps, loads, JSONDecodeError
+from time import sleep
 
 import communication.data_manager as dm
 
 
+# TODO: Test on PI
 class Server:
 
     def __init__(self, *, ip='0.0.0.0', port=50000):
@@ -34,7 +36,6 @@ class Server:
         # Tell the server to listen to only one connection
         self._socket.listen(1)
 
-    # TODO: Finish this
     def _init_low_level(self):
 
         # Declare a set of clients to remember
@@ -43,16 +44,17 @@ class Server:
         # Declare a list of ports to remember
         self._ports = ["/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyACM2", "/dev/ttyACM3"]
 
+        # Initialise an id iterator to assign a corresponding arduino to each port
+        arduino_id = 1
+
         # Iterate over each port and create corresponding clients
         for port in self._ports:
 
-            try:
-                # Create an instance of the Arduino and store it
-                self._clients.add(Arduino(port))
-                print("Connection with {} established.".format(port))
+            # Create an instance of the Arduino and store it
+            self._clients.add(Arduino(port, arduino_id))
 
-            except SerialException:
-                print("Failed to connect to {}".format(port))
+            # Pick next identification to assign
+            arduino_id += 1
 
     def _listen_high_level(self):
 
@@ -60,7 +62,7 @@ class Server:
         while True:
 
             # Inform that the server is ready to receive a connection
-            print("Waiting for a connection...")
+            print("Waiting for a connection from the surface...")
 
             # Wait for a connection (accept function blocks the program until a client connects to the server)
             self._client_socket, self._client_address = self._socket.accept()
@@ -107,35 +109,113 @@ class Server:
             # Inform that the connection is closed
             print("Connection from {} address closed successfully".format(self._client_address))
 
-    # TODO: Finish this
     def _listen_low_level(self):
 
-        # Never stop the server once it was started
-        while True:
-            pass
+        # Iterate over assigned clients
+        for client in self._clients:
+            client.connect()
 
-    # TODO: Finish this, possibly use threads and/or spawn more processes
     def run(self):
 
-        # Run each connection
+        # Open the communication with surface in a new process
         Process(target=self._listen_high_level).start()
+
+        # Open the communication with lower-levels with the server's process as the parent process
+        self._listen_low_level()
 
 
 # TODO: Finish this
 class Arduino:
 
-    # TODO: Finish this
-    def __init__(self, port):
+    def __init__(self, port, arduino_id):
 
-        # Create a new serial object
-        self._serial = Serial(port)
+        # Store the port information
+        self._port = port
 
-    # TODO: Finish this
+        # Store the id information
+        self._id = arduino_id
+
+        # Initialise the serial information
+        self._serial = Serial()
+        self._serial.port = self._port
+
+        # Initialise the process information
+        self._process = Process(target=self._run)
+
+        # Initialise the delay constant to offload some computing power
+        self._RECONNECT_DELAY = 1
+
+        # Initialise data exchange delay
+        self._COMMUNICATION_DELAY = 0.02
+
+    # TODO: Finish this, test this, secure against errors (incl. connection loss on both sides)
     def _run(self):
 
-        # Run an infinite loop to keep exchanging data
+        # Run an infinite loop to never close the connection
         while True:
-            pass
+
+            # Inform about connection attempt
+            print("Connecting to port {}...".format(self._port))
+
+            # Keep attempting to establish a connection
+            while True:
+
+                try:
+                    # Attempt to assign a serial connection
+                    self._serial.open()
+
+                except SerialException:
+                    sleep(self._RECONNECT_DELAY)
+                    continue
+
+                # Inform about successfully established connection
+                print("Successfully connected to port {}".format(self._port))
+
+                try:
+                    if self._serial.is_open:  # TODO: Check if this is even needed with try-except block
+
+                        # Send current state of the data
+                        self._serial.write(bytes(dumps(dm.data.get(self._id))))
+
+                        # Read until the specified character is found
+                        data = self._serial.read_until()  # TODO: Find out if 0-byte is send on connection close
+
+                        # Convert bytes to string, remove white spaces, ignore invalid data
+                        try:
+                            data = data.decode("utf-8").strip()
+                        except UnicodeDecodeError:
+                            data = None
+
+                        # Handle valid data
+                        if data:
+
+                            # Attempt to decode from JSON, inform about invalid data received
+                            try:
+                                dm.data.set(self._id, **loads(data))
+                            except JSONDecodeError:
+                                print("Received invalid data: {}".format(data))
+
+                        # Delay the communication to allow the Arduino to catch up
+                        sleep(self._COMMUNICATION_DELAY)
+
+                    else:
+                        print("Connection to port {} lost".format(self._port))
+                        self._serial.close()
+                        break
+
+                except SerialException:
+                    print("Connection to port {} lost".format(self._port))
+                    self._serial.close()
+                    break
+
+                except TypeError:
+                    print("test to see what causes this, possibly None-s")  # TODO <--
+                    pass
+
+    def connect(self):
+
+        # Start the connection
+        self._process.start()
 
 
 if __name__ == "__main__":
