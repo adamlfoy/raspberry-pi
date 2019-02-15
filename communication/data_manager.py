@@ -6,7 +6,6 @@ ARDUINO_C = 3
 ARDUINO_D = 4
 
 
-# TODO: Make this a singleton
 class DataManager:
 
     def __init__(self):
@@ -39,5 +38,22 @@ class DataManager:
             self._data[index][key] = value
 
 
-# Create a globally accessible data manager
-data = DataManager()
+# Create a closure for the data manager
+def _init_manager():
+
+    # Create a free variable for the Data Manager TODO: Make it a singleton
+    d = DataManager()
+
+    # Inner function to return the current state of the data
+    def get_data(index: int, *args):
+        return d.get(index, *args)
+
+    # Inner function to alter the data
+    def set_data(index: int, **kwargs):
+        return d.set(index, **kwargs)
+
+    return get_data, set_data
+
+
+# Create globally accessible functions to manage the data
+get_data, set_data = _init_manager()

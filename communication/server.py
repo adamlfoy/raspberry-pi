@@ -96,12 +96,12 @@ class Server:
 
                     # Attempt to decode from JSON, inform about invalid data received
                     try:
-                        dm.data.set(dm.SURFACE, **loads(data))
+                        dm.set_data(dm.SURFACE, **loads(data))
                     except JSONDecodeError:
                         print("Received invalid data: {}".format(data))
 
                 # Send current state of the data manager
-                self._client_socket.sendall(bytes(dumps(dm.data.get(dm.SURFACE)), encoding="utf-8"))
+                self._client_socket.sendall(bytes(dumps(dm.get_data(dm.SURFACE)), encoding="utf-8"))
 
             # Clean up
             self._client_socket.close()
@@ -175,7 +175,7 @@ class Arduino:
                     if self._serial.is_open:  # TODO: Check if this is even needed with try-except block
 
                         # Send current state of the data
-                        self._serial.write(bytes(dumps(dm.data.get(self._id))))
+                        self._serial.write(bytes(dumps(dm.get_data(self._id))))
 
                         # Read until the specified character is found
                         data = self._serial.read_until()  # TODO: Find out if 0-byte is send on connection close
@@ -191,7 +191,7 @@ class Arduino:
 
                             # Attempt to decode from JSON, inform about invalid data received
                             try:
-                                dm.data.set(self._id, **loads(data))
+                                dm.set_data(self._id, **loads(data))
                             except JSONDecodeError:
                                 print("Received invalid data: {}".format(data))
 
