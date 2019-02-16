@@ -4,10 +4,10 @@ from multiprocessing import Process
 from json import dumps, loads, JSONDecodeError
 from time import sleep
 
+# TODO: Fix relative path issues on PI (after adding the server to run on boot)
 import communication.data_manager as dm
 
 
-# TODO: Test on PI
 class Server:
 
     def __init__(self, *, ip='0.0.0.0', port=50000):
@@ -27,10 +27,13 @@ class Server:
         # Initialise the socket for IPv4 addresses (hence AF_INET) and TCP (hence SOCK_STREAM)
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+        # Declare the constant for the communication timeout with the surface
+        self._TIMEOUT = 3
+
+        # Bind the socket to the given address, inform about errors TODO: Add binding into loop
         try:
-            # Bind the socket to the given address
             self._socket.bind((self._ip, self._port))
-        except socket.error as e:
+        except socket.error:
             print("Failed to bind socket to the given address {}:{} ".format(self._ip, self._port))
 
         # Tell the server to listen to only one connection
@@ -67,13 +70,19 @@ class Server:
             # Wait for a connection (accept function blocks the program until a client connects to the server)
             self._client_socket, self._client_address = self._socket.accept()
 
-            # Inform that someone has connected
+            # Set a non-blocking connection to timeout on receive/send
+            self._client_socket.setblocking(False)
+
+            # Set the timeout
+            self._client_socket.settimeout(self._TIMEOUT)
+
+            # Inform that a client has successfully connected
             print("Client with address {} connected".format(self._client_address))
 
             while True:
 
+                # Once connected, keep receiving and sending the data, break in case of errors
                 try:
-                    # Once connected, keep receiving and sending the data, break in case of errors
                     data = self._client_socket.recv(4096)
 
                     # If 0-byte was received, close the connection
@@ -84,8 +93,10 @@ class Server:
                     break
                 except ConnectionAbortedError:
                     break
+                except socket.timeout:
+                    break
 
-                # Convert bytes to string, remove white spaces, ignore invalid data
+                # Convert bytes to string, remove the white spaces, ignore any invalid data
                 try:
                     data = data.decode("utf-8").strip()
                 except UnicodeDecodeError:
@@ -100,13 +111,21 @@ class Server:
                     except JSONDecodeError:
                         print("Received invalid data: {}".format(data))
 
-                # Send current state of the data manager
-                self._client_socket.sendall(bytes(dumps(dm.get_data(dm.SURFACE)), encoding="utf-8"))
+                # Send the current state of the data manager, break in case of errors
+                try:
+                    self._client_socket.sendall(bytes(dumps(dm.get_data(dm.SURFACE)), encoding="utf-8"))
+
+                except ConnectionResetError:
+                    break
+                except ConnectionAbortedError:
+                    break
+                except socket.timeout:
+                    break
 
             # Clean up
             self._client_socket.close()
 
-            # Inform that the connection is closed
+            # Inform that the connection has been closed
             print("Connection from {} address closed successfully".format(self._client_address))
 
     def _listen_low_level(self):
