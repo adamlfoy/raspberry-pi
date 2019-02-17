@@ -184,14 +184,14 @@ class Arduino:
             # Inform about connection attempt
             print("Connecting to port {}...".format(self._port))
 
-            # Keep attempting to establish a connection
+            # Keep exchanging the data or re-connecting
             while True:
 
                 # If the connection is closed
                 if not self._serial.is_open:
 
                     try:
-                        # Attempt to assign a serial connection
+                        # Attempt to open a serial connection
                         self._serial.open()
 
                         # Inform about a successfully established connection
@@ -205,7 +205,7 @@ class Arduino:
                     # Send current state of the data
                     self._serial.write(bytes(dumps(dm.get_data(self._id)), encoding='utf-8'))
 
-                    # Read until the specified character is found
+                    # Read until the specified character is found ("\n" by default)
                     data = self._serial.read_until()
 
                     # Convert bytes to string, remove white spaces, ignore invalid data
