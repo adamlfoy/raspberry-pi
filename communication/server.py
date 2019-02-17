@@ -143,7 +143,8 @@ class Server:
         self._listen_low_level()
 
 
-# TODO: Finish this
+# TODO: Test and resolve possible problems with incorrect port assignments. Possibly make a pre-communication
+# TODO: ping exchange, to identify which arduino is connected to which port. Test with proper Arduino code.
 class Arduino:
 
     def __init__(self, port, arduino_id):
@@ -158,8 +159,13 @@ class Arduino:
         self._serial = Serial()
         self._serial.port = self._port
 
-        # Initialise the process information
-        self._process = Process(target=self._run)
+        # Initialise the timeout constants
+        self._WRITE_TIMEOUT = 5
+        self._READ_TIMEOUT = 5
+
+        # Set the read and write timeouts
+        self._serial.write_timeout = self._WRITE_TIMEOUT
+        self._serial.timeout = self._READ_TIMEOUT
 
         # Initialise the delay constant to offload some computing power
         self._RECONNECT_DELAY = 1
@@ -167,7 +173,9 @@ class Arduino:
         # Initialise data exchange delay
         self._COMMUNICATION_DELAY = 0.02
 
-    # TODO: Finish this, test this, secure against errors (incl. connection loss on both sides)
+        # Initialise the process information
+        self._process = Process(target=self._run)
+
     def _run(self):
 
         # Run an infinite loop to never close the connection
@@ -179,57 +187,49 @@ class Arduino:
             # Keep attempting to establish a connection
             while True:
 
+                # If the connection is closed
+                if not self._serial.is_open:
+
+                    try:
+                        # Attempt to assign a serial connection
+                        self._serial.open()
+
+                        # Inform about a successfully established connection
+                        print("Successfully connected to port {}".format(self._port))
+
+                    except SerialException:
+                        sleep(self._RECONNECT_DELAY)
+                        continue
+
                 try:
-                    # Attempt to assign a serial connection
-                    self._serial.open()
+                    # Send current state of the data
+                    self._serial.write(bytes(dumps(dm.get_data(self._id)), encoding='utf-8'))
 
-                except SerialException:
-                    sleep(self._RECONNECT_DELAY)
-                    continue
+                    # Read until the specified character is found
+                    data = self._serial.read_until()
 
-                # Inform about successfully established connection
-                print("Successfully connected to port {}".format(self._port))
+                    # Convert bytes to string, remove white spaces, ignore invalid data
+                    try:
+                        data = data.decode("utf-8").strip()
+                    except UnicodeDecodeError:
+                        data = None
 
-                try:
-                    if self._serial.is_open:  # TODO: Check if this is even needed with try-except block
+                    # Handle valid data
+                    if data:
 
-                        # Send current state of the data
-                        self._serial.write(bytes(dumps(dm.get_data(self._id))))
-
-                        # Read until the specified character is found
-                        data = self._serial.read_until()  # TODO: Find out if 0-byte is send on connection close
-
-                        # Convert bytes to string, remove white spaces, ignore invalid data
+                        # Attempt to decode from JSON, inform about invalid data received
                         try:
-                            data = data.decode("utf-8").strip()
-                        except UnicodeDecodeError:
-                            data = None
+                            dm.set_data(self._id, **loads(data))
+                        except JSONDecodeError:
+                            print("Received invalid data: {}".format(data))
 
-                        # Handle valid data
-                        if data:
-
-                            # Attempt to decode from JSON, inform about invalid data received
-                            try:
-                                dm.set_data(self._id, **loads(data))
-                            except JSONDecodeError:
-                                print("Received invalid data: {}".format(data))
-
-                        # Delay the communication to allow the Arduino to catch up
-                        sleep(self._COMMUNICATION_DELAY)
-
-                    else:
-                        print("Connection to port {} lost".format(self._port))
-                        self._serial.close()
-                        break
+                    # Delay the communication to allow the Arduino to catch up
+                    sleep(self._COMMUNICATION_DELAY)
 
                 except SerialException:
                     print("Connection to port {} lost".format(self._port))
                     self._serial.close()
                     break
-
-                except TypeError:
-                    print("test to see what causes this, possibly None-s")  # TODO <--
-                    pass
 
     def connect(self):
 
