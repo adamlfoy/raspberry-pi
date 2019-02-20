@@ -1,3 +1,35 @@
+"""
+
+Server is used to handle the information exchange with the Raspberry Pi.
+
+** Usage **
+
+By importing the module you gain access to the classes 'Server' and 'Arduino'.
+
+You should create an instance of it and use the 'run' function to start the communication.The constructor of the
+'Server' class takes 2 optional parameters - 'ip' and 'port', which can be specified to identify address of the
+Raspberry Pi (host) for connecting with the surface. Ip passed should be a string, whereas the port an integer. Both
+arguments are of the keyword-only type.
+
+Once connected, the 'Server' class should handle everything, including formatting, encoding and re-connecting in case of
+data loss. Exchanging data with the surface and each Arduino is done in a separate process.
+
+** Example **
+
+Let ip be 169.254.147.140 and port 50000. To host a server with the given address, call:
+
+    server = Server(ip=169.254.147.140)
+
+The port is 50000 by default, so it's not necessary to explicitly specify it. To run, call:
+
+    server.run()
+
+** Author **
+
+Kacper Florianski
+
+"""
+
 import socket
 from serial import Serial, SerialException
 from multiprocessing import Process
@@ -60,6 +92,14 @@ class Server:
             arduino_id += 1
 
     def _listen_high_level(self):
+        """
+
+        Method used to run a continuous connection with the surface.
+
+        Runs an infinite loop that performs re-connection to the connected client as well as exchanges data with it, via
+        non-blocking send and receive functions. The data exchanged is JSON-encoded.
+
+        """
 
         # Never stop the server once it was started
         while True:
@@ -129,6 +169,14 @@ class Server:
             print("Connection from {} address closed successfully".format(self._client_address))
 
     def _listen_low_level(self):
+        """
+
+        Method used to run a continuous connection with the Arduino-s.
+
+        The Arduino.connect function has a similar functionality to the _listen_high_level function, and is further
+        described in ints corresponding documentation.
+
+        """
 
         # Iterate over assigned clients
         for client in self._clients:
@@ -232,6 +280,14 @@ class Arduino:
                     break
 
     def connect(self):
+        """
+
+        Method used to run a continuous connection with the surface.
+
+        Runs an infinite loop that performs re-connection to the connected client as well as exchanges data with it, via
+        non-blocking write and read_until functions. The data exchanged is JSON-encoded.
+
+        """
 
         # Start the connection
         self._process.start()
