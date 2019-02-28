@@ -16,9 +16,11 @@ data loss. Exchanging data with the surface and each Arduino is done in a separa
 
 ** Example **
 
+The data manager will be referred to as 'dm'.
+
 Let ip be 169.254.147.140 and port 50000. To host a server with the given address, call:
 
-    server = Server(ip=169.254.147.140)
+    server = Server(dm, ip=169.254.147.140)
 
 The port is 50000 by default, so it's not necessary to explicitly specify it. To run, call:
 
