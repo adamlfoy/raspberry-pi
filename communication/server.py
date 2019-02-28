@@ -32,17 +32,17 @@ Kacper Florianski
 
 import socket
 from serial import Serial, SerialException
-from multiprocessing import Process
+from threading import Thread
 from json import dumps, loads, JSONDecodeError
 from time import sleep
-
-# TODO: Fix relative path issues on PI (after adding the server to run on boot)
-import communication.data_manager as dm
 
 
 class Server:
 
-    def __init__(self, *, ip='0.0.0.0', port=50000):
+    def __init__(self, dm: "Data Manager", *, ip='0.0.0.0', port=50000):
+
+        # Store the data manager information
+        self._dm = dm
 
         # Initialise communication with surface
         self._init_high_level(ip, port)
@@ -86,7 +86,7 @@ class Server:
         for port in self._ports:
 
             # Create an instance of the Arduino and store it
-            self._clients.add(Arduino(port, arduino_id))
+            self._clients.add(Arduino(port, arduino_id, self._dm))
 
             # Pick next identification to assign
             arduino_id += 1
@@ -147,13 +147,13 @@ class Server:
 
                     # Attempt to decode from JSON, inform about invalid data received
                     try:
-                        dm.set_data(dm.SURFACE, **loads(data))
+                        self._dm.set_data(self._dm.SURFACE, **loads(data))
                     except JSONDecodeError:
                         print("Received invalid data: {}".format(data))
 
                 # Send the current state of the data manager, break in case of errors
                 try:
-                    self._client_socket.sendall(bytes(dumps(dm.get_data(dm.SURFACE)), encoding="utf-8"))
+                    self._client_socket.sendall(bytes(dumps(self._dm.get_data(self._dm.SURFACE)), encoding="utf-8"))
 
                 except ConnectionResetError:
                     break
@@ -185,17 +185,18 @@ class Server:
     def run(self):
 
         # Open the communication with surface in a new process
-        Process(target=self._listen_high_level).start()
+        Thread(target=self._listen_high_level).start()
 
         # Open the communication with lower-levels with the server's process as the parent process
         self._listen_low_level()
 
 
-# TODO: Test and resolve possible problems with incorrect port assignments. Possibly make a pre-communication
-# TODO: ping exchange, to identify which arduino is connected to which port. Test with proper Arduino code.
 class Arduino:
 
-    def __init__(self, port, arduino_id):
+    def __init__(self, port, arduino_id, dm: "Data manager"):
+
+        # Store the data manager information
+        self._dm = dm
 
         # Store the port information
         self._port = port
@@ -222,7 +223,7 @@ class Arduino:
         self._COMMUNICATION_DELAY = 0.02
 
         # Initialise the process information
-        self._process = Process(target=self._run)
+        self._process = Thread(target=self._run)
 
     def _run(self):
 
@@ -251,7 +252,7 @@ class Arduino:
 
                 try:
                     # Send current state of the data
-                    self._serial.write(bytes(dumps(dm.get_data(self._id)), encoding='utf-8'))
+                    self._serial.write(bytes(dumps(self._dm.get_data(self._id)), encoding='utf-8'))
 
                     # Read until the specified character is found ("\n" by default)
                     data = self._serial.read_until()
@@ -267,7 +268,7 @@ class Arduino:
 
                         # Attempt to decode from JSON, inform about invalid data received
                         try:
-                            dm.set_data(self._id, **loads(data))
+                            self._dm.set_data(self._id, **loads(data))
                         except JSONDecodeError:
                             print("Received invalid data: {}".format(data))
 
@@ -291,8 +292,3 @@ class Arduino:
 
         # Start the connection
         self._process.start()
-
-
-if __name__ == "__main__":
-    s = Server()
-    s.run()
