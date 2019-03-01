@@ -155,7 +155,8 @@ class Server:
 
                 # Send the current state of the data manager, break in case of errors
                 try:
-                    self._client_socket.sendall(bytes(dumps(self._dm.get_data(self._dm.SURFACE)), encoding="utf-8"))
+                    self._client_socket.sendall(bytes(dumps(
+                        self._dm.get_data(self._dm.SURFACE, transmit=True)), encoding="utf-8"))
 
                 except ConnectionResetError:
                     break
@@ -254,7 +255,7 @@ class Arduino:
 
                 try:
                     # Send current state of the data
-                    self._serial.write(bytes(dumps(self._dm.get_data(self._id)), encoding='utf-8'))
+                    self._serial.write(bytes(dumps(self._dm.get_data(self._id, transmit=True)), encoding='utf-8'))
 
                     # Read until the specified character is found ("\n" by default)
                     data = self._serial.read_until()
