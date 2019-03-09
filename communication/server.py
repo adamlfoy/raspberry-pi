@@ -35,16 +35,14 @@ Kacper Florianski
 import socket
 from serial import Serial, SerialException
 from threading import Thread
+import communication.data_manager as dm
 from json import dumps, loads, JSONDecodeError
 from time import sleep
 
 
 class Server:
 
-    def __init__(self, dm: "Data Manager", *, ip='0.0.0.0', port=50000):
-
-        # Store the data manager information
-        self._dm = dm
+    def __init__(self, *, ip='0.0.0.0', port=50000):
 
         # Initialise communication with surface
         self._init_high_level(ip, port)
@@ -78,20 +76,17 @@ class Server:
         # Declare a set of clients to remember
         self._clients = set()
 
-        # Declare a list of ports to remember
-        self._ports = ["/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyACM2", "/dev/ttyACM3"]
+        # Declare a list of ports to remember, match this with ids below for the overall initialisation
+        self._ports = ["COM5", "/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyACM2"]
 
-        # Initialise an id iterator to assign a corresponding arduino to each port
-        arduino_id = 1
+        # Initialise an id list to assign a corresponding arduino to each port and a helper iterator
+        arduino_ids = [dm.ARDUINO_A, dm.ARDUINO_B, dm.ARDUINO_C, dm.ARDUINO_D]
 
         # Iterate over each port and create corresponding clients
-        for port in self._ports:
+        for i in range(len(self._ports)):
 
             # Create an instance of the Arduino and store it
-            self._clients.add(Arduino(port, arduino_id, self._dm))
-
-            # Pick next identification to assign
-            arduino_id += 1
+            self._clients.add(Arduino(self._ports[i], arduino_ids[i]))
 
     def _listen_high_level(self):
         """
@@ -149,14 +144,14 @@ class Server:
 
                     # Attempt to decode from JSON, inform about invalid data received
                     try:
-                        self._dm.set_data(self._dm.SURFACE, **loads(data))
+                        dm.set_data(dm.SURFACE, **loads(data))
                     except JSONDecodeError:
                         print("Received invalid data: {}".format(data))
 
                 # Send the current state of the data manager, break in case of errors
                 try:
                     self._client_socket.sendall(bytes(dumps(
-                        self._dm.get_data(self._dm.SURFACE, transmit=True)), encoding="utf-8"))
+                        dm.get_data(dm.SURFACE, transmit=True)), encoding="utf-8"))
 
                 except ConnectionResetError:
                     break
@@ -196,10 +191,7 @@ class Server:
 
 class Arduino:
 
-    def __init__(self, port, arduino_id, dm: "Data manager"):
-
-        # Store the data manager information
-        self._dm = dm
+    def __init__(self, port, arduino_id):
 
         # Store the port information
         self._port = port
@@ -212,8 +204,8 @@ class Arduino:
         self._serial.port = self._port
 
         # Initialise the timeout constants
-        self._WRITE_TIMEOUT = 5
-        self._READ_TIMEOUT = 5
+        self._WRITE_TIMEOUT = 1
+        self._READ_TIMEOUT = 1
 
         # Set the read and write timeouts
         self._serial.write_timeout = self._WRITE_TIMEOUT
@@ -255,7 +247,7 @@ class Arduino:
 
                 try:
                     # Send current state of the data
-                    self._serial.write(bytes(dumps(self._dm.get_data(self._id, transmit=True)), encoding='utf-8'))
+                    self._serial.write(bytes(dumps(dm.get_data(self._id, transmit=True)) + "\n", encoding='utf-8'))
 
                     # Read until the specified character is found ("\n" by default)
                     data = self._serial.read_until()
@@ -269,11 +261,20 @@ class Arduino:
                     # Handle valid data
                     if data:
 
-                        # Attempt to decode from JSON, inform about invalid data received
                         try:
-                            self._dm.set_data(self._id, **loads(data))
+                            # Attempt to decode the JSON data
+                            data = loads(data)
+
+                            # Override the ID
+                            self._id = data["deviceID"]
+
+                            # Update the Arduino data (and the surface data)
+                            dm.set_data(self._id, **data)
+
                         except JSONDecodeError:
                             print("Received invalid data: {}".format(data))
+                        except KeyError:
+                            print("Received valid data with invalid ID: {}".format(data))
 
                     # Delay the communication to allow the Arduino to catch up
                     sleep(self._COMMUNICATION_DELAY)
