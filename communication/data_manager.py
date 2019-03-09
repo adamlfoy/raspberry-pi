@@ -42,7 +42,7 @@ Kacper Florianski
 
 # Declare constants to easily access the resources
 SURFACE = 0
-ARDUINO_A = 1
+ARDUINO_A = "Ard-T"
 ARDUINO_B = 2
 ARDUINO_C = 3
 ARDUINO_D = 4
@@ -68,34 +68,13 @@ class DataManager:
             ARDUINO_D: self._arduino_D
         }
 
-        # Create sets of keys matching data which should be sent over the network
-        self._transmission_keys_surface = {
-            "test"
-        }
-
-        self._transmission_keys_arduino_A = {
-
-        }
-
-        self._transmission_keys_arduino_B = {
-
-        }
-
-        self._transmission_keys_arduino_C = {
-
-        }
-
-        self._transmission_keys_arduino_D = {
-
-        }
-
-        # Create a dictionary mapping each index to corresponding location
+        # Create a dictionary mapping each index to a set of networking keys
         self._transmission_keys = {
-            SURFACE: self._transmission_keys_surface,
-            ARDUINO_A: self._transmission_keys_arduino_A,
-            ARDUINO_B: self._transmission_keys_arduino_B,
-            ARDUINO_C: self._transmission_keys_arduino_C,
-            ARDUINO_D: self._transmission_keys_arduino_D
+            SURFACE: {"example"},
+            ARDUINO_A: {"lay", "lax"},
+            ARDUINO_B: {},
+            ARDUINO_C: {},
+            ARDUINO_D: {}
         }
 
     def get(self, index: int, *args, transmit=False):
@@ -109,11 +88,36 @@ class DataManager:
         # Return selected data or whole dictionary if no args passed
         return {key: self._data[index][key] for key in args} if args else self._data[index]
 
+    # TODO: Try to optimise this function ( O(n^2) :( )
     def set(self, index: int, **kwargs):
 
-        # Update the data with the given keyword arguments
-        for key, value in kwargs.items():
-            self._data[index][key] = value
+        # If index passed is surface
+        if index == SURFACE:
+
+            # Update the surface data with the given keyword arguments
+            for key, value in kwargs.items():
+                self._data[SURFACE][key] = value
+
+            # Dispatch the Arduino values
+            for index, values in self._transmission_keys.items():
+                if index != SURFACE:
+
+                    # Iterate over all keys in the transmission set
+                    for key in values:
+
+                        # Check if the key is in the data passed
+                        if key in self._data[SURFACE]:
+
+                            # Update the according value
+                            self._data[index][key] = self._data[SURFACE][key]
+
+        # If index passed is an Arduino
+        else:
+
+            # Update the data with the given keyword arguments, and update the surface anyway
+            for key, value in kwargs.items():
+                self._data[index][key] = value
+                self._data[SURFACE][key] = value
 
 
 # Create a closure for the data manager
