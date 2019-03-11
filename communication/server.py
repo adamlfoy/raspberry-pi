@@ -16,11 +16,9 @@ data loss. Exchanging data with the surface and each Arduino is done in a separa
 
 ** Example **
 
-The data manager will be referred to as 'dm'.
-
 Let ip be 169.254.147.140 and port 50000. To host a server with the given address, call:
 
-    server = Server(dm, ip=169.254.147.140)
+    server = Server(ip=169.254.147.140)
 
 The port is 50000 by default, so it's not necessary to explicitly specify it. To run, call:
 
@@ -33,11 +31,14 @@ Kacper Florianski
 """
 
 import socket
-from serial import Serial, SerialException
-from threading import Thread
 import communication.data_manager as dm
+from serial import Serial, SerialException
 from json import dumps, loads, JSONDecodeError
 from time import sleep
+from pathos import helpers
+
+# Fetch the Process class
+Process = helpers.mp.Process
 
 
 class Server:
@@ -56,13 +57,13 @@ class Server:
         self._ip = ip
         self._port = port
 
-        # Initialise the socket for IPv4 addresses (hence AF_INET) and TCP (hence SOCK_STREAM)
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
         # Declare the constant for the communication timeout with the surface
         self._TIMEOUT = 3
 
-        # Bind the socket to the given address, inform about errors TODO: Add binding into loop
+        # Initialise the socket for IPv4 addresses (hence AF_INET) and TCP (hence SOCK_STREAM)
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        # Bind the socket to the given address, inform about errors
         try:
             self._socket.bind((self._ip, self._port))
         except socket.error:
@@ -183,7 +184,7 @@ class Server:
     def run(self):
 
         # Open the communication with surface in a new process
-        Thread(target=self._listen_high_level).start()
+        Process(target=self._listen_high_level).start()
 
         # Open the communication with lower-levels with the server's process as the parent process
         self._listen_low_level()
@@ -218,7 +219,7 @@ class Arduino:
         self._COMMUNICATION_DELAY = 0.02
 
         # Initialise the process information
-        self._process = Thread(target=self._run)
+        self._process = Process(target=self._run)
 
     def _run(self):
 
