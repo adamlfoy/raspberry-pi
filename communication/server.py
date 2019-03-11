@@ -81,7 +81,7 @@ class Server:
         self._ports = ["COM5", "/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyACM2"]
 
         # Initialise an id list to assign a corresponding arduino to each port and a helper iterator
-        arduino_ids = [dm.ARDUINO_A, dm.ARDUINO_B, dm.ARDUINO_C, dm.ARDUINO_D]
+        arduino_ids = [dm.ARDUINO_T, dm.ARDUINO_A, dm.ARDUINO_M, dm.ARDUINO_I]
 
         # Iterate over each port and create corresponding clients
         for i in range(len(self._ports)):
