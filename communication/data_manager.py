@@ -40,6 +40,9 @@ Kacper Florianski
 
 """
 
+from diskcache import FanoutCache
+from os import path
+
 # Declare constants to easily access the resources
 SURFACE = 0
 ARDUINO_A = "Ard-T"
@@ -53,11 +56,11 @@ class DataManager:
     def __init__(self):
 
         # Declare dictionaries of data
-        self._surface = dict()
-        self._arduino_A = dict()
-        self._arduino_B = dict()
-        self._arduino_C = dict()
-        self._arduino_D = dict()
+        self._surface = FanoutCache(path.join("cache", "surface.cache"), shards=2)
+        self._arduino_A = FanoutCache(path.join("cache", "arduino_a.cache"), shards=2)
+        self._arduino_B = FanoutCache(path.join("cache", "arduino_b.cache"), shards=2)
+        self._arduino_C = FanoutCache(path.join("cache", "arduino_c.cache"), shards=2)
+        self._arduino_D = FanoutCache(path.join("cache", "arduino_d.cache"), shards=2)
 
         # Create a dictionary mapping each index to corresponding location
         self._data = {
@@ -81,12 +84,14 @@ class DataManager:
 
         # If the data retrieved is meant to be sent over the network
         if transmit:
+
             # Return selected data or transmission-specific dictionary if no args passed
             return {key: self._data[index][key] for key in args if key in self._transmission_keys[index]} if args else \
                 {key: self._data[index][key] for key in self._transmission_keys[index] if key in self._data[index]}
 
         # Return selected data or whole dictionary if no args passed
-        return {key: self._data[index][key] for key in args} if args else self._data[index]
+        return {key: self._data[index][key] for key in args} if args else {key: self._data[index][key]
+                                                                           for key in self._data[index]}
 
     # TODO: Try to optimise this function ( O(n^2) :( )
     def set(self, index: int, **kwargs):
@@ -119,6 +124,13 @@ class DataManager:
                 self._data[index][key] = value
                 self._data[SURFACE][key] = value
 
+    def clear(self):
+        self._surface.clear()
+        self._arduino_A.clear()
+        self._arduino_B.clear()
+        self._arduino_C.clear()
+        self._arduino_D.clear()
+
 
 # Create a closure for the data manager
 def _init_manager():
@@ -134,8 +146,12 @@ def _init_manager():
     def set_data(index: int, **kwargs):
         return d.set(index, **kwargs)
 
-    return get_data, set_data
+    # Inner function to clear the cache
+    def clear():
+        d.clear()
+
+    return get_data, set_data, clear
 
 
 # Create globally accessible functions to manage the data
-get_data, set_data = _init_manager()
+get_data, set_data, clear = _init_manager()
