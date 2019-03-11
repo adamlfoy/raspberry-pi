@@ -57,10 +57,10 @@ class DataManager:
 
         # Declare dictionaries of data
         self._surface = FanoutCache(path.join("cache", "surface.cache"), shards=2)
-        self._arduino_T = FanoutCache(path.join("cache", "arduino_a.cache"), shards=2)
-        self._arduino_A = FanoutCache(path.join("cache", "arduino_b.cache"), shards=2)
-        self._arduino_M = FanoutCache(path.join("cache", "arduino_c.cache"), shards=2)
-        self._arduino_I = FanoutCache(path.join("cache", "arduino_d.cache"), shards=2)
+        self._arduino_T = FanoutCache(path.join("cache", "arduino_t.cache"), shards=2)
+        self._arduino_A = FanoutCache(path.join("cache", "arduino_a.cache"), shards=2)
+        self._arduino_M = FanoutCache(path.join("cache", "arduino_m.cache"), shards=2)
+        self._arduino_I = FanoutCache(path.join("cache", "arduino_i.cache"), shards=2)
 
         # Create a dictionary mapping each index to corresponding location
         self._data = {
@@ -126,10 +126,10 @@ class DataManager:
 
     def clear(self):
         self._surface.clear()
+        self._arduino_T.clear()
         self._arduino_A.clear()
-        self._arduino_B.clear()
-        self._arduino_C.clear()
-        self._arduino_D.clear()
+        self._arduino_M.clear()
+        self._arduino_I.clear()
 
 
 # Create a closure for the data manager
