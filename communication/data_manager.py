@@ -45,10 +45,10 @@ from os import path
 
 # Declare constants to easily access the resources
 SURFACE = 0
-ARDUINO_A = "Ard-T"
-ARDUINO_B = 2
-ARDUINO_C = 3
-ARDUINO_D = 4
+ARDUINO_T = "Ard-T"
+ARDUINO_A = "Ard-A"
+ARDUINO_M = "Ard-M"
+ARDUINO_I = "Ard-I"
 
 
 class DataManager:
@@ -57,27 +57,27 @@ class DataManager:
 
         # Declare dictionaries of data
         self._surface = FanoutCache(path.join("cache", "surface.cache"), shards=2)
+        self._arduino_T = FanoutCache(path.join("cache", "arduino_t.cache"), shards=2)
         self._arduino_A = FanoutCache(path.join("cache", "arduino_a.cache"), shards=2)
-        self._arduino_B = FanoutCache(path.join("cache", "arduino_b.cache"), shards=2)
-        self._arduino_C = FanoutCache(path.join("cache", "arduino_c.cache"), shards=2)
-        self._arduino_D = FanoutCache(path.join("cache", "arduino_d.cache"), shards=2)
+        self._arduino_M = FanoutCache(path.join("cache", "arduino_m.cache"), shards=2)
+        self._arduino_I = FanoutCache(path.join("cache", "arduino_i.cache"), shards=2)
 
         # Create a dictionary mapping each index to corresponding location
         self._data = {
             SURFACE: self._surface,
+            ARDUINO_T: self._arduino_T,
             ARDUINO_A: self._arduino_A,
-            ARDUINO_B: self._arduino_B,
-            ARDUINO_C: self._arduino_C,
-            ARDUINO_D: self._arduino_D
+            ARDUINO_M: self._arduino_M,
+            ARDUINO_I: self._arduino_I
         }
 
         # Create a dictionary mapping each index to a set of networking keys
         self._transmission_keys = {
             SURFACE: {"example"},
-            ARDUINO_A: {"lay", "lax"},
-            ARDUINO_B: {},
-            ARDUINO_C: {},
-            ARDUINO_D: {}
+            ARDUINO_T: {"Thr-FP", "Thr-FS", "Thr-AP", "Thr-AS", "Thr-TFP", "Thr-TFS", "Thr-TAP", "Thr-TAS"},
+            ARDUINO_A: {"Mot-R", "Mot-G", "Mot-F"},
+            ARDUINO_M: {"Thr-M", "LED-M"},
+            ARDUINO_I: {"Sen-IMU", "Sen-Dep", "Sen-Temp", "Sen-Leak"}
         }
 
     def get(self, index: int, *args, transmit=False):
@@ -126,10 +126,10 @@ class DataManager:
 
     def clear(self):
         self._surface.clear()
+        self._arduino_T.clear()
         self._arduino_A.clear()
-        self._arduino_B.clear()
-        self._arduino_C.clear()
-        self._arduino_D.clear()
+        self._arduino_M.clear()
+        self._arduino_I.clear()
 
 
 # Create a closure for the data manager
