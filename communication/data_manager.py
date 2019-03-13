@@ -20,6 +20,9 @@ You should use the 'set_data' function to change the resources. You must specify
 which device should it change the data for. For each keyword argument passed, the state of the data dictionary under the
 given key will be changed to the given value.
 
+You should modify the 'DEFAULT' constant to change the default connection loss values. This data will simulate receiving
+such values from the surface and can be used to specify custom behaviour on losing the connection (e.g. thrusters off).
+
 ** Example **
 
 Let axis_x = 10, axis_y = 20, axis_z = -15. To save these values as surface readings into the data manager, call:
@@ -50,6 +53,11 @@ ARDUINO_A = "Ard-A"
 ARDUINO_M = "Ard-M"
 ARDUINO_I = "Ard-I"
 
+# Declare default key, value pairs for surface
+DEFAULT = {
+    "example": 0
+}
+
 
 class DataManager:
 
@@ -73,12 +81,15 @@ class DataManager:
 
         # Create a dictionary mapping each index to a set of networking keys
         self._transmission_keys = {
-            SURFACE: {"example"},
+            SURFACE: {},
             ARDUINO_T: {"Thr-FP", "Thr-FS", "Thr-AP", "Thr-AS", "Thr-TFP", "Thr-TFS", "Thr-TAP", "Thr-TAS"},
             ARDUINO_A: {"Mot-R", "Mot-G", "Mot-F"},
             ARDUINO_M: {"Thr-M", "LED-M"},
             ARDUINO_I: {"Sen-IMU", "Sen-Dep", "Sen-Temp", "Sen-Leak"}
         }
+
+        # Create a key to ID lookup for performance reasons
+        self._keys_lookup = {v: k for k, values in self._transmission_keys.items() if k != SURFACE for v in values}
 
     def get(self, index: int, *args, transmit=False):
 
@@ -93,36 +104,30 @@ class DataManager:
         return {key: self._data[index][key] for key in args} if args else {key: self._data[index][key]
                                                                            for key in self._data[index]}
 
-    # TODO: Try to optimise this function ( O(n^2) :( )
     def set(self, index: int, **kwargs):
 
-        # If index passed is surface
-        if index == SURFACE:
+        # Iterate over all kwargs' key, value pairs
+        for key, value in kwargs.items():
 
-            # Update the surface data with the given keyword arguments
-            for key, value in kwargs.items():
+            # If index passed is Surface
+            if index == SURFACE:
+
+                # Update the corresponding Arduino transmission data
+                if key in self._keys_lookup:
+                    self._data[self._keys_lookup[key]][key] = value
+
+                # Update the surface data
                 self._data[SURFACE][key] = value
 
-            # Dispatch the Arduino values
-            for index, values in self._transmission_keys.items():
-                if index != SURFACE:
+            # If index passed is an Arduino
+            else:
 
-                    # Iterate over all keys in the transmission set
-                    for key in values:
-
-                        # Check if the key is in the data passed
-                        if key in self._data[SURFACE]:
-
-                            # Update the according value
-                            self._data[index][key] = self._data[SURFACE][key]
-
-        # If index passed is an Arduino
-        else:
-
-            # Update the data with the given keyword arguments, and update the surface anyway
-            for key, value in kwargs.items():
+                # Update the corresponding Arduino data
                 self._data[index][key] = value
-                self._data[SURFACE][key] = value
+
+                # Update the corresponding Surface transmission data
+                if key in self._data[SURFACE]:
+                    self._data[SURFACE][key] = value
 
     def clear(self):
         self._surface.clear()
