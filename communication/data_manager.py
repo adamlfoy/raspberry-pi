@@ -45,10 +45,10 @@ from os import path
 
 # Declare constants to easily access the resources
 SURFACE = 0
-ARDUINO_T = "Ard-T"
-ARDUINO_A = "Ard-A"
-ARDUINO_M = "Ard-M"
-ARDUINO_I = "Ard-I"
+ARDUINO_T = "Ard_T"
+ARDUINO_A = "Ard_A"
+ARDUINO_M = "Ard_M"
+ARDUINO_I = "Ard_I"
 
 
 class DataManager:
@@ -73,11 +73,11 @@ class DataManager:
 
         # Create a dictionary mapping each index to a set of networking keys
         self._transmission_keys = {
-            SURFACE: {"example"},
-            ARDUINO_T: {"Thr-FP", "Thr-FS", "Thr-AP", "Thr-AS", "Thr-TFP", "Thr-TFS", "Thr-TAP", "Thr-TAS"},
-            ARDUINO_A: {"Mot-R", "Mot-G", "Mot-F"},
-            ARDUINO_M: {"Thr-M", "LED-M"},
-            ARDUINO_I: {"Sen-IMU", "Sen-Dep", "Sen-Temp", "Sen-Leak"}
+            SURFACE: {"status_T", "status_A","status_M","status_I","error_T","error_A","error_M","error_I","Sen_IMU_X","Sen_IMU_Y","Sen_IMU_Z","Sen_IMU_Temp"},
+            ARDUINO_T: {"Thr_FP", "Thr_FS", "Thr_AP", "Thr_AS", "Thr_TFP", "Thr_TFS", "Thr_TAP", "Thr_TAS"},
+            ARDUINO_A: {"Mot_R", "Mot_G", "Mot_F"},
+            ARDUINO_M: {"Thr_M", "LED_M"},
+            ARDUINO_I: {"Sen_IMU", "Sen_Dep", "Sen_Temp", "Sen_Leak"}
         }
 
     def get(self, index: int, *args, transmit=False):
