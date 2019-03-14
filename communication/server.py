@@ -14,6 +14,9 @@ arguments are of the keyword-only type.
 Once connected, the 'Server' class should handle everything, including formatting, encoding and re-connecting in case of
 data loss. Exchanging data with the surface and each Arduino is done in a separate process.
 
+You should modify the '_on_surface_disconnected' function to modify behaviour when the connection between surface and
+the PI is lost. However, this function should always set the communication data to default using the 'data_manager'.
+
 ** Example **
 
 Let ip be 169.254.147.140 and port 50000. To host a server with the given address, call:
@@ -81,7 +84,7 @@ class Server:
         self._ports = ["COM5", "/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyACM2"]
 
         # Initialise an id list to assign a corresponding arduino to each port and a helper iterator
-        arduino_ids = [dm.ARDUINO_A, dm.ARDUINO_B, dm.ARDUINO_C, dm.ARDUINO_D]
+        arduino_ids = [dm.ARDUINO_T, dm.ARDUINO_A, dm.ARDUINO_M, dm.ARDUINO_I]
 
         # Iterate over each port and create corresponding clients
         for i in range(len(self._ports)):
@@ -127,11 +130,8 @@ class Server:
                     if not data:
                         break
 
-                except ConnectionResetError:
-                    break
-                except ConnectionAbortedError:
-                    break
-                except socket.timeout:
+                except (ConnectionResetError, ConnectionAbortedError, socket.timeout):
+                    self._on_surface_disconnected()
                     break
 
                 # Convert bytes to string, remove the white spaces, ignore any invalid data
@@ -154,11 +154,8 @@ class Server:
                     self._client_socket.sendall(bytes(dumps(
                         dm.get_data(dm.SURFACE, transmit=True)), encoding="utf-8"))
 
-                except ConnectionResetError:
-                    break
-                except ConnectionAbortedError:
-                    break
-                except socket.timeout:
+                except (ConnectionResetError, ConnectionAbortedError, socket.timeout):
+                    self._on_surface_disconnected()
                     break
 
             # Clean up
@@ -180,6 +177,11 @@ class Server:
         # Iterate over assigned clients
         for client in self._clients:
             client.connect()
+
+    def _on_surface_disconnected(self):
+
+        # Set the keys to their default values, BEWARE: might add keys that haven't yet been received from surface
+        dm.set_data(dm.SURFACE, **dm.DEFAULT)
 
     def run(self):
 
