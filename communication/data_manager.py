@@ -85,7 +85,7 @@ class DataManager:
             ARDUINO_T: {"Thr_FP", "Thr_FS", "Thr_AP", "Thr_AS", "Thr_TFP", "Thr_TFS", "Thr_TAP", "Thr_TAS"},
             ARDUINO_A: {"Mot_R", "Mot_G", "Mot_F"},
             ARDUINO_M: {"Thr_M", "LED_M"},
-            ARDUINO_I: {"Sen_IMU", "Sen_Dep", "Sen_Temp", "Sen_Leak"}
+            ARDUINO_I: {}
         }
 
         # Create a key to ID lookup for performance reasons
