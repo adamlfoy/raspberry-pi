@@ -53,9 +53,19 @@ ARDUINO_A = "Ard_A"
 ARDUINO_M = "Ard_M"
 ARDUINO_I = "Ard_I"
 
-# Declare default key, value pairs for surface
+# Declare some default values
+THRUSTER_IDLE = 1500
+
+# Declare default key, value pairs to handle connection loss with surface
 DEFAULT = {
-    "example": 0
+    "Thr_FP": THRUSTER_IDLE,
+    "Thr_FS": THRUSTER_IDLE,
+    "Thr_AP": THRUSTER_IDLE,
+    "Thr_AS": THRUSTER_IDLE,
+    "Thr_TFP": THRUSTER_IDLE,
+    "Thr_TFS": THRUSTER_IDLE,
+    "Thr_TAP": THRUSTER_IDLE,
+    "Thr_TAS": THRUSTER_IDLE
 }
 
 
@@ -64,11 +74,11 @@ class DataManager:
     def __init__(self):
 
         # Declare dictionaries of data
-        self._surface = FanoutCache(path.join("cache", "surface.cache"), shards=2)
-        self._arduino_T = FanoutCache(path.join("cache", "arduino_t.cache"), shards=2)
-        self._arduino_A = FanoutCache(path.join("cache", "arduino_a.cache"), shards=2)
-        self._arduino_M = FanoutCache(path.join("cache", "arduino_m.cache"), shards=2)
-        self._arduino_I = FanoutCache(path.join("cache", "arduino_i.cache"), shards=2)
+        self._surface = FanoutCache(path.join("cache", "surface"), shards=2)
+        self._arduino_T = FanoutCache(path.join("cache", "arduino_t"), shards=2)
+        self._arduino_A = FanoutCache(path.join("cache", "arduino_a"), shards=2)
+        self._arduino_M = FanoutCache(path.join("cache", "arduino_m"), shards=2)
+        self._arduino_I = FanoutCache(path.join("cache", "arduino_i"), shards=2)
 
         # Create a dictionary mapping each index to corresponding location
         self._data = {
@@ -81,7 +91,8 @@ class DataManager:
 
         # Create a dictionary mapping each index to a set of networking keys
         self._transmission_keys = {
-            SURFACE: {"status_T", "status_A","status_M","status_I","error_T","error_A","error_M","error_I","Sen_IMU_X","Sen_IMU_Y","Sen_IMU_Z","Sen_IMU_Temp"},
+            SURFACE: {"status_T", "status_A", "status_M", "status_I", "error_T", "error_A", "error_M", "error_I",
+                      "Sen_IMU_X", "Sen_IMU_Y", "Sen_IMU_Z", "Sen_IMU_Temp"},
             ARDUINO_T: {"Thr_FP", "Thr_FS", "Thr_AP", "Thr_AS", "Thr_TFP", "Thr_TFS", "Thr_TAP", "Thr_TAS"},
             ARDUINO_A: {"Mot_R", "Mot_G", "Mot_F"},
             ARDUINO_M: {"Thr_M", "LED_M"},
