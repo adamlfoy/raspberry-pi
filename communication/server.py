@@ -46,6 +46,10 @@ Process = helpers.mp.Process
 
 class Server:
 
+    # Custom exception to handle data errors
+    class DataError(Exception):
+        pass
+
     def __init__(self, *, ip='0.0.0.0', port=50000):
 
         # Initialise communication with surface
@@ -55,6 +59,9 @@ class Server:
         self._init_low_level()
 
     def _init_high_level(self, ip, port):
+
+        # Initialise the process to handle parallel communication
+        self._process = Process(target=self._listen_high_level)
 
         # Save the host and port information
         self._ip = ip
@@ -106,7 +113,7 @@ class Server:
         while True:
 
             # Inform that the server is ready to receive a connection
-            print("Waiting for a connection from the surface...")
+            print("{} is waiting for a client...".format(self._socket.getsockname()))
 
             # Wait for a connection (accept function blocks the program until a client connects to the server)
             self._client_socket, self._client_address = self._socket.accept()
@@ -122,47 +129,14 @@ class Server:
 
             while True:
 
-                # Once connected, keep receiving and sending the data, break in case of errors
+                # Attempt to handle the data, break in case of errors
                 try:
-                    data = self._client_socket.recv(4096)
-
-                    # If 0-byte was received, close the connection
-                    if not data:
-                        break
-
-                except (ConnectionResetError, ConnectionAbortedError, socket.timeout):
-                    self._on_surface_disconnected()
+                    self._handle_data()
+                except self.DataError:
                     break
 
-                # Convert bytes to string, remove the white spaces, ignore any invalid data
-                try:
-                    data = data.decode("utf-8").strip()
-                except UnicodeDecodeError:
-                    data = None
-
-                # Handle valid data
-                if data:
-
-                    # Attempt to decode from JSON, inform about invalid data received
-                    try:
-                        dm.set_data(dm.SURFACE, **loads(data))
-                    except JSONDecodeError:
-                        print("Received invalid data: {}".format(data))
-
-                # Send the current state of the data manager, break in case of errors
-                try:
-                    self._client_socket.sendall(bytes(dumps(
-                        dm.get_data(dm.SURFACE, transmit=True)), encoding="utf-8"))
-
-                except (ConnectionResetError, ConnectionAbortedError, socket.timeout):
-                    self._on_surface_disconnected()
-                    break
-
-            # Clean up
-            self._client_socket.close()
-
-            # Inform that the connection has been closed
-            print("Connection from {} address closed successfully".format(self._client_address))
+            # Run clean up / connection lost info etc.
+            self._on_surface_disconnected()
 
     def _listen_low_level(self):
         """
@@ -180,13 +154,55 @@ class Server:
 
     def _on_surface_disconnected(self):
 
+        # Close the socket
+        self._client_socket.close()
+
+        # Inform that the connection has been closed
+        print("Connection from {} address closed successfully".format(self._client_address))
+
         # Set the keys to their default values, BEWARE: might add keys that haven't yet been received from surface
         dm.set_data(dm.SURFACE, **dm.DEFAULT)
 
+    def _handle_data(self):
+
+        # Once connected, keep receiving and sending the data, raise exception in case of errors
+        try:
+            data = self._client_socket.recv(4096)
+
+            # If 0-byte was received, close the connection
+            if not data:
+                raise self.DataError
+
+        except (ConnectionResetError, ConnectionAbortedError, socket.timeout):
+            raise self.DataError
+
+        # Convert bytes to string, remove the white spaces, ignore any invalid data
+        try:
+            data = data.decode("utf-8").strip()
+        except UnicodeDecodeError:
+            data = None
+
+        # Handle valid data
+        if data:
+
+            # Attempt to decode from JSON, inform about invalid data received
+            try:
+                dm.set_data(dm.SURFACE, **loads(data))
+            except JSONDecodeError:
+                print("Received invalid data: {}".format(data))
+
+        # Send the current state of the data manager, break in case of errors
+        try:
+            self._client_socket.sendall(bytes(dumps(
+                dm.get_data(dm.SURFACE, transmit=True)), encoding="utf-8"))
+
+        except (ConnectionResetError, ConnectionAbortedError, socket.timeout):
+            raise self.DataError
+
     def run(self):
 
-        # Open the communication with surface in a new process
-        Process(target=self._listen_high_level).start()
+        # Start the communication with surface's process
+        self._process.start()
 
         # Open the communication with lower-levels with the server's process as the parent process
         self._listen_low_level()
