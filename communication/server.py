@@ -1,21 +1,32 @@
 """
 
-Server is used to handle the information exchange with the Raspberry Pi.
+Server is used to handle the information exchange with high and low-level layers of the system.
 
-** Usage **
+** Functionality **
 
 By importing the module you gain access to the classes 'Server' and 'Arduino'.
 
-You should create an instance of it and use the 'run' function to start the communication.The constructor of the
+You should create an instance of 'Server' and use the 'run' function to start the communication. The constructor of the
 'Server' class takes 2 optional parameters - 'ip' and 'port', which can be specified to identify address of the
-Raspberry Pi (host) for connecting with the surface. Ip passed should be a string, whereas the port an integer. Both
-arguments are of the keyword-only type.
+Raspberry Pi (host) to connect with the surface. Ip passed should be a string, whereas the port an integer.
 
 Once connected, the 'Server' class should handle everything, including formatting, encoding and re-connecting in case of
-data loss. Exchanging data with the surface and each Arduino is done in a separate process.
+data loss. Exchanging data with the surface and each Arduino is done in separate processes.
+
+You should modify the '_init_high_level' and '_init_low_level' functions to perform any additional initialisations of
+the respective layers.
+
+You should modify the '_listen_high_level' and '_listen_low_level' functions to change the existing ways of exchanging
+information with the respective layers.
+
+You should modify any `_handle_data` functions to change how the data is processed.
 
 You should modify the '_on_surface_disconnected' function to modify behaviour when the connection between surface and
-the PI is lost. However, this function should always set the communication data to default using the 'data_manager'.
+the Pi is lost. Remember, this function should always set the communication data to default using the 'data_manager'.
+
+** Constants and other values **
+
+All constants and other important values are mentioned and explained within the corresponding functions.
 
 ** Example **
 
@@ -51,14 +62,36 @@ class Server:
         pass
 
     def __init__(self, *, ip='0.0.0.0', port=50000):
+        """
+
+        Function used to initialise the server.
+
+        :param ip: Raspberry Pi's IP address
+        :param port: Raspberry Pi's port
+
+        """
 
         # Initialise communication with surface
-        self._init_high_level(ip, port)
+        self._init_high_level(ip=ip, port=port)
 
         # Initialise communication with Arduino-s
-        self._init_low_level()
+        self._init_low_level(ports=["/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyACM2", "/dev/ttyACM3"])
 
     def _init_high_level(self, ip, port):
+        """
+
+        Function used to initialise communication with the surface.
+
+        ** Modifications **
+
+            1. Modify the '_TIMEOUT' constant to specify the timeout value (seconds) for communication with the surface.
+
+            2. Modify the try, except block to handle error messages when it's impossible to bind the socket.
+
+        :param ip: Raspberry Pi's IP
+        :param port: Raspberry Pi's port
+
+        """
 
         # Initialise the process to handle parallel communication
         self._process = Process(target=self._listen_high_level)
@@ -82,13 +115,20 @@ class Server:
         # Tell the server to listen to only one connection
         self._socket.listen(1)
 
-    def _init_low_level(self):
+    def _init_low_level(self, ports):
+        """
+
+        Function used to initialise communication with the surface.
+
+        :param ports: An iterable of Arduino ports
+
+        """
 
         # Declare a set of clients to remember
         self._clients = set()
 
         # Declare a list of ports to remember, match this with ids below for the overall initialisation
-        self._ports = ["COM5", "/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyACM2"]
+        self._ports = ports
 
         # Initialise an id list to assign a corresponding arduino to each port and a helper iterator
         arduino_ids = [dm.ARDUINO_T, dm.ARDUINO_A, dm.ARDUINO_M, dm.ARDUINO_I]
@@ -102,7 +142,7 @@ class Server:
     def _listen_high_level(self):
         """
 
-        Method used to run a continuous connection with the surface.
+        Function used to run a continuous connection with the surface.
 
         Runs an infinite loop that performs re-connection to the connected client as well as exchanges data with it, via
         non-blocking send and receive functions. The data exchanged is JSON-encoded.
@@ -153,6 +193,11 @@ class Server:
             client.connect()
 
     def _on_surface_disconnected(self):
+        """
+
+        Function used to clean up any resources or set appropriate flags when a connection to surface is closed.
+
+        """
 
         # Close the socket
         self._client_socket.close()
@@ -164,6 +209,15 @@ class Server:
         dm.set_data(dm.SURFACE, **dm.DEFAULT)
 
     def _handle_data(self):
+        """
+
+        Function used to exchange and process the data.
+
+        ** Modifications **
+
+            1. Modify any try, except blocks to change the error-handling (keep in mind to use the DataError exception).
+
+        """
 
         # Once connected, keep receiving and sending the data, raise exception in case of errors
         try:
@@ -200,6 +254,11 @@ class Server:
             raise self.DataError
 
     def run(self):
+        """
+
+        Function used to run the server.
+
+        """
 
         # Start the communication with surface's process
         self._process.start()
@@ -210,7 +269,28 @@ class Server:
 
 class Arduino:
 
+    # Custom exception to handle data errors
+    class DataError(Exception):
+        pass
+
     def __init__(self, port, arduino_id):
+        """
+
+        Function used to initialise the state of each Arduino
+
+        ** Modifications **
+
+            1. Modify the '_WRITE_TIMEOUT' constant to specify the timeout value (seconds) for sending to an Arduino.
+
+            2. Modify the '_READ_TIMEOUT' constant to specify the timeout value (seconds) for receiving from an Arduino.
+
+            3. Modify the '_RECONNECT_DELAY' constant to specify the delay value (seconds) on connection loss.
+
+            4. Modify the '_COMMUNICATION_DELAY' constant to specify the delay value (seconds) on communication.
+
+        :param port: Raspberry Pi's port to which the Arduino is connected to
+        :param arduino_id: Unique identifier of the Arduino
+        """
 
         # Store the port information
         self._port = port
@@ -239,12 +319,66 @@ class Arduino:
         # Initialise the process information
         self._process = Process(target=self._run)
 
+    def _handle_data(self):
+        """
+
+        Function used to exchange and process the data.
+
+        ** Modifications **
+
+            1. Modify any try, except blocks to change the error-handling (keep in mind to use the DataError exception).
+
+        """
+
+        # Send current state of the data
+        self._serial.write(bytes(dumps(dm.get_data(self._id, transmit=True)) + "\n", encoding='utf-8'))
+
+        # Read until the specified character is found ("\n" by default)
+        data = self._serial.read_until()
+
+        # Convert bytes to string, remove white spaces, ignore invalid data
+        try:
+            data = data.decode("utf-8").strip()
+        except UnicodeDecodeError:
+            data = None
+
+        # Handle valid data
+        if data:
+
+            try:
+                # Attempt to decode the JSON data
+                data = loads(data)
+
+                # Override the ID
+                self._id = data["deviceID"]
+
+                # Update the Arduino data (and the surface data)
+                dm.set_data(self._id, **data)
+
+            except JSONDecodeError:
+                print("Received invalid data: {}".format(data))
+                raise self.DataError
+            except KeyError:
+                print("Received valid data with invalid ID: {}".format(data))
+                raise self.DataError
+
+        # Delay the communication to allow the Arduino to catch up
+        sleep(self._COMMUNICATION_DELAY)
+
     def _run(self):
+        """
+
+        Function used to run a continuous connection with an Arduino.
+
+        Runs an infinite loop that performs re-connection to the connected client as well as exchanges data with it, via
+        non-blocking write and read_until functions. The data exchanged is JSON-encoded.
+
+        """
 
         # Run an infinite loop to never close the connection
         while True:
 
-            # Inform about connection attempt
+            # Inform about a connection attempt
             print("Connecting to port {}...".format(self._port))
 
             # Keep exchanging the data or re-connecting
@@ -264,40 +398,11 @@ class Arduino:
                         sleep(self._RECONNECT_DELAY)
                         continue
 
+                # Attempt to handle the data, break in case of errors
                 try:
-                    # Send current state of the data
-                    self._serial.write(bytes(dumps(dm.get_data(self._id, transmit=True)) + "\n", encoding='utf-8'))
-
-                    # Read until the specified character is found ("\n" by default)
-                    data = self._serial.read_until()
-
-                    # Convert bytes to string, remove white spaces, ignore invalid data
-                    try:
-                        data = data.decode("utf-8").strip()
-                    except UnicodeDecodeError:
-                        data = None
-
-                    # Handle valid data
-                    if data:
-
-                        try:
-                            # Attempt to decode the JSON data
-                            data = loads(data)
-
-                            # Override the ID
-                            self._id = data["deviceID"]
-
-                            # Update the Arduino data (and the surface data)
-                            dm.set_data(self._id, **data)
-
-                        except JSONDecodeError:
-                            print("Received invalid data: {}".format(data))
-                        except KeyError:
-                            print("Received valid data with invalid ID: {}".format(data))
-
-                    # Delay the communication to allow the Arduino to catch up
-                    sleep(self._COMMUNICATION_DELAY)
-
+                    self._handle_data()
+                except self.DataError:
+                    pass
                 except SerialException:
                     print("Connection to port {} lost".format(self._port))
                     self._serial.close()
@@ -306,10 +411,7 @@ class Arduino:
     def connect(self):
         """
 
-        Method used to run a continuous connection with the surface.
-
-        Runs an infinite loop that performs re-connection to the connected client as well as exchanges data with it, via
-        non-blocking write and read_until functions. The data exchanged is JSON-encoded.
+        Function used to run the communication with an Arduino in a separate process.
 
         """
 
