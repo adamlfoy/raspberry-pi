@@ -12,13 +12,13 @@ Here is a full list of changes introduced to the system. Naturally, before insta
 4. Server start on boot
 5. `OpenCV` installation (pending)
 
-### `VNC`, `SSH` activation
+### 1. VNC-SSH-activation
 
 - Launch Raspberry Pi Configuration from the *Preferences* menu
 - Navigate to the *Interfaces* tab
 - Enable *SSH* and *VNC*
 
-### Python3.6 installation
+### 2. Python3.6 installation
 
 Run the following block of commands:
 
@@ -34,7 +34,7 @@ bash configure
 make altinstall
 ```
 
-### Python libraries installation via `pip`
+### 3. Python libraries installation via pip
 
 Run the following block of commands:
 
@@ -45,7 +45,7 @@ sudo python3.6 -m pip install pyserial
 sudo python3.6 -m pip install pathos
 ```
 
-### Server start on boot
+### 4. Server start on boot
 
 1. Run the following command:
 
@@ -116,6 +116,6 @@ Sources:
 
 2. https://www.raspberrypi.org/documentation/linux/usage/systemd.md
 
-### OpenCV installation (pending)
+### 5. OpenCV installation (pending)
 
 To be tested.
