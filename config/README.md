@@ -118,15 +118,16 @@ Sources:
 
 ### 5. OpenCV installation
 
-Installation of OpenCV is done by generally following this guide: https://www.pyimagesearch.com/2018/09/26/install-opencv-4-on-your-raspberry-pi/ with a few changes listed below.
+Installation of OpenCV is done by generally following this guide: https://www.pyimagesearch.com/2018/09/26/install-opencv-4-on-your-raspberry-pi/ with the following steps having modifications.
 
-#### Step #4
+1. Step #4
 
 Skip the majority of Step #4. Do not create a virtual environment and instead install numpy using the following command:
 ```commandline
 sudo python3.6 -m pip install numpy
 ```
-#### Step #5
+2. Step #5
+
 When compiling consider using the following command:
 ```commandline
 make -j3
@@ -135,7 +136,8 @@ This will only use 3 cores instead of all 4 which the guide prescribes. This is 
 
 Also be aware that the compilation can take up to 3 hours to complete because the pi will spend a lot of time swapping things between swap space and memory. Be patient if it looks like the process has hung, it likely hasn't but is swapping things in and out of memory.
 
-#### Step #6
+3. Step #6
+
 Skip step #6 as described in the guide.
 Instead of linking to the virtual environment instead link to the python 3.6 installation.
 
