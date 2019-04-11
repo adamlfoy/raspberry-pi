@@ -115,8 +115,8 @@ class DataManager:
             SURFACE: {"status_T", "status_A", "status_M", "status_I", "error_T", "error_A", "error_M", "error_I",
                       "Sen_IMU_X", "Sen_IMU_Y", "Sen_IMU_Z", "Sen_IMU_Temp"},
             ARDUINO_T: {"Thr_FP", "Thr_FS", "Thr_AP", "Thr_AS", "Thr_TFP", "Thr_TFS", "Thr_TAP", "Thr_TAS"},
-            ARDUINO_A: {"Mot_R", "Mot_G", "Mot_F"},
-            ARDUINO_M: {"Thr_M", "LED_M"},
+            ARDUINO_A: {"Mot_R", "Mot_G", "Mot_F", "LED_M"},
+            ARDUINO_M: {"Thr_M"},
             ARDUINO_I: {}
         }
 
