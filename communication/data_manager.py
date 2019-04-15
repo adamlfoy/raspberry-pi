@@ -67,6 +67,7 @@ ARDUINO_I = "Ard_I"
 
 # Declare some default values
 THRUSTER_IDLE = 1500
+LIGHT_OFF = 1100
 
 # Declare default key, value pairs to handle connection loss with surface
 DEFAULT = {
@@ -77,7 +78,11 @@ DEFAULT = {
     "Thr_TFP": THRUSTER_IDLE,
     "Thr_TFS": THRUSTER_IDLE,
     "Thr_TAP": THRUSTER_IDLE,
-    "Thr_TAS": THRUSTER_IDLE
+    "Thr_TAS": THRUSTER_IDLE,
+    "Mot_R": THRUSTER_IDLE,
+    "Mot_G": THRUSTER_IDLE,
+    "Mot_F": THRUSTER_IDLE,
+    "LED_M": LIGHT_OFF
 }
 
 
