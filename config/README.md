@@ -12,13 +12,13 @@ Here is a full list of changes introduced to the system. Naturally, before insta
 4. Server start on boot
 5. `OpenCV` installation (pending)
 
-### `VNC`, `SSH` activation
+### 1. VNC-SSH-activation
 
 - Launch Raspberry Pi Configuration from the *Preferences* menu
 - Navigate to the *Interfaces* tab
 - Enable *SSH* and *VNC*
 
-### Python3.6 installation
+### 2. Python3.6 installation
 
 Run the following block of commands:
 
@@ -34,7 +34,7 @@ bash configure
 make altinstall
 ```
 
-### Python libraries installation via `pip`
+### 3. Python libraries installation via pip
 
 Run the following block of commands:
 
@@ -45,7 +45,7 @@ sudo python3.6 -m pip install pyserial
 sudo python3.6 -m pip install pathos
 ```
 
-### Server start on boot
+### 4. Server start on boot
 
 1. Run the following command:
 
@@ -116,6 +116,32 @@ Sources:
 
 2. https://www.raspberrypi.org/documentation/linux/usage/systemd.md
 
-### OpenCV installation (pending)
+### 5. OpenCV installation
 
-To be tested.
+Installation of OpenCV is done by generally following this guide: https://www.pyimagesearch.com/2018/09/26/install-opencv-4-on-your-raspberry-pi/ with the following steps having modifications.
+
+1. Step #4
+
+Skip the majority of Step #4. Do not create a virtual environment and instead install numpy using the following command:
+```commandline
+sudo python3.6 -m pip install numpy
+```
+2. Step #5
+
+When compiling consider using the following command:
+```commandline
+make -j3
+```
+This will only use 3 cores instead of all 4 which the guide prescribes. This is done because using all 4 cores is likely to cause the pi to freeze while compiling while using 3 leaves a single core for other threads to run on. Allowing for the monitoring of the compilation much more easily.
+
+Also be aware that the compilation can take up to 3 hours to complete because the pi will spend a lot of time swapping things between swap space and memory. Be patient if it looks like the process has hung, it likely hasn't but is swapping things in and out of memory.
+
+3. Step #6
+
+Skip step #6 as described in the guide.
+Instead of linking to the virtual environment instead link to the python 3.6 installation.
+
+```commandline
+cd /usr/local/lib/python3.6/site-packages/
+ln -s /usr/local/python/cv2/python-3.5/cv2.cpython-35m-arm-linux-gnueabihf.so cv2.so
+```
