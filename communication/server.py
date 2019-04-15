@@ -298,9 +298,13 @@ class Arduino:
         # Store the id information
         self._id = arduino_id
 
+        # Initialise custom baud rate constant (sorry if this is wrong Kacper :P )
+        self._BAUD_RATE = 230400
+
         # Initialise the serial information
         self._serial = Serial()
         self._serial.port = self._port
+        self._serial.baudrate = self._BAUD_RATE
 
         # Initialise the timeout constants
         self._WRITE_TIMEOUT = 1
